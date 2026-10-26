@@ -1,4 +1,4 @@
-﻿param([switch]$SkipUi)
+param([switch]$SkipUi)
 $ErrorActionPreference='Stop'
 & (Join-Path $PSScriptRoot 'Tests\Run.ps1') -SkipUi:$SkipUi
 $build=Join-Path $PSScriptRoot 'build'
@@ -17,7 +17,7 @@ function Write-Zip([string]$path,[hashtable]$files){
 $binary=@{'Campaign Ultrawide.exe'=$exe}
 foreach($name in @('README.md','LICENSE','CHANGELOG.md')){$binary[$name]=Join-Path $PSScriptRoot $name}
 $source=@{}
-foreach($name in @('Launcher.cs','Build.ps1','Release.ps1','Starcraft-2-Campaign-Ultrawide.csproj','README.md','LICENSE','CHANGELOG.md','.gitignore','.gitattributes','.editorconfig')){$source['Starcraft-2-Campaign-Ultrawide/'+$name]=Join-Path $PSScriptRoot $name}
+foreach($name in @('.mise.toml','packages.lock.json','Launcher.cs','Build.ps1','Release.ps1','Starcraft-2-Campaign-Ultrawide.csproj','README.md','LICENSE','CHANGELOG.md','.gitignore','.gitattributes','.editorconfig')){$source['Starcraft-2-Campaign-Ultrawide/'+$name]=Join-Path $PSScriptRoot $name}
 foreach($folder in @('Engine','Tests','Assets','.github')){
     foreach($file in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot $folder) -Recurse -File -Force){
         $relative=$file.FullName.Substring($PSScriptRoot.Length+1).Replace('\','/')

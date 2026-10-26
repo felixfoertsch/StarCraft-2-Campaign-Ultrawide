@@ -1,43 +1,30 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
-    <ProjectGuid>{4968DEBC-0C50-49AB-942A-00E221985BA4}</ProjectGuid>
+    <TargetFramework>net48</TargetFramework>
     <OutputType>WinExe</OutputType>
-    <ApplicationIcon>Assets\App.ico</ApplicationIcon>
     <AssemblyName>Campaign Ultrawide</AssemblyName>
-    <RootNamespace>CampaignUltrawide</RootNamespace>
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <ApplicationIcon>Assets/App.ico</ApplicationIcon>
     <PlatformTarget>x64</PlatformTarget>
-    <OutputPath>build\</OutputPath>
+    <OutputPath>build/</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DefineConstants>SC2_TESTS</DefineConstants>
     <Optimize>true</Optimize>
     <DebugType>none</DebugType>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Web.Extensions" />
-    <Compile Include="Launcher.cs" />
-    <None Include="Assets\icon.png" />
-    <EmbeddedResource Include="Assets\App.ico"><LogicalName>Application.Icon</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Engine\Auto-Campaign.ps1"><LogicalName>Engine.Auto-Campaign.ps1</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Engine\Campaign-Ultrawide.ps1"><LogicalName>Engine.Campaign-Ultrawide.ps1</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Engine\CampaignDisplayRefresh.cs"><LogicalName>Engine.CampaignDisplayRefresh.cs</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Engine\CampaignGate.cs"><LogicalName>Engine.CampaignGate.cs</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Engine\SC2Addresses.cs"><LogicalName>Engine.SC2Addresses.cs</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Engine\CampaignModeHook.cs"><LogicalName>Engine.CampaignModeHook.cs</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Engine\Centered-HUD.ps1"><LogicalName>Engine.Centered-HUD.ps1</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Engine\Control.ps1"><LogicalName>Engine.Control.ps1</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Engine\MemoryRead.cs"><LogicalName>Engine.MemoryRead.cs</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Engine\SC2AutoStart.cs"><LogicalName>Engine.SC2AutoStart.cs</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Engine\SC2HudHook.cs"><LogicalName>Engine.SC2HudHook.cs</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Engine\SC2HudScale.cs"><LogicalName>Engine.SC2HudScale.cs</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Engine\Scaled-HUD.ps1"><LogicalName>Engine.Scaled-HUD.ps1</LogicalName></EmbeddedResource>
+    <Compile Include="Launcher.cs;Engine/*.cs;Tests/*.cs" />
+    <EmbeddedResource Include="Assets/App.ico" LogicalName="Application.Icon" />
   </ItemGroup>
-  <ItemGroup><EmbeddedResource Include="Engine\HubCamera.cs"><LogicalName>Engine.HubCamera.cs</LogicalName></EmbeddedResource></ItemGroup>
-  <ItemGroup><EmbeddedResource Include="Engine\MissionZoom.cs"><LogicalName>Engine.MissionZoom.cs</LogicalName></EmbeddedResource></ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
 </Project>

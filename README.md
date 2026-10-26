@@ -2,7 +2,9 @@
 
 Play StarCraft II single-player campaigns in ultrawide with an adjustable HUD, farther camera zoom, and wider hub views.
 
-[Download the latest release](https://github.com/jrgray933/StarCraft-2-Campaign-Ultrawide/releases/latest)
+[Download the latest release](https://github.com/felixfoertsch/StarCraft-2-Campaign-Ultrawide/releases/latest)
+
+Fork of [jrgray933/StarCraft-2-Campaign-Ultrawide](https://github.com/jrgray933/StarCraft-2-Campaign-Ultrawide).
 
 ## Features
 
@@ -38,13 +40,43 @@ You can adjust HUD size, zoom, zoom steps, and hub framing while playing. Close 
 
 ## Requirements
 
-- 64-bit Windows 10 or 11, .NET Framework 4.8, and Windows PowerShell 5.1.
+- 64-bit Windows 10 or 11, .NET Framework 4.8.
 - The 64-bit version of StarCraft II, in fullscreen mode.
 - A widescreen resolution supported by your display.
 
 **Single-player campaigns only.** Signing into Battle.net is fine; multiplayer is not supported. This tool modifies game memory, so account enforcement cannot be ruled out. Use at your own risk. It is not affiliated with or endorsed by Blizzard Entertainment.
 
 Game updates may require an updated helper. StarCraft II can be installed in any folder.
+
+## Experimental Wine / Proton support
+
+Run the helper and StarCraft II in the same 64-bit Wine prefix and with the same Wine / Proton runtime. Use a separate copy of your working prefix for testing.
+
+Extract the helper inside the prefix's `C:` drive and launch it using its Windows path. Launching from an external Unix path can break Wine Mono's configuration lookup and JSON serializer. Under umu, launch the helper with `PROTON_VERB=run`.
+
+Run StarCraft II / Battle.net inside gamescope at your display's native resolution, for example:
+
+```sh
+gamescope -W 3440 -H 1440 -w 3440 -h 1440 -r 120 -f -- umu-run Battle.net.exe
+```
+
+Without gamescope, Proton restores the 16:9 fullscreen mode on alt-tab.
+
+Wine Mono is sufficient; no separate scripting runtime or runtime compilation is needed. Run `Campaign Ultrawide.exe --self-test` first. Verify that `self-test-results.txt` contains native test PASS lines, not only an exit code. Optional `--smoke-test` checks launcher layout and writes `layout-test-results.txt`.
+
+Live campaign behavior under Wine remains unverified. All campaign-only restrictions and account-risk warnings still apply.
+
+## Building
+
+On Linux, install [mise](https://mise.jdx.dev/), then run:
+
+```fish
+mise install
+mise exec -- dotnet restore --locked-mode
+mise exec -- dotnet build -c Release --no-restore
+```
+
+Output: `build/Campaign Ultrawide.exe`, targeting x64 .NET Framework 4.8. Build downloads only reference assemblies; deployment remains one executable. Windows can also use `./Build.ps1` with the Framework64 compiler. `./Release.ps1 -SkipUi` builds, runs native self-tests, and packages releases.
 
 ## Updating
 

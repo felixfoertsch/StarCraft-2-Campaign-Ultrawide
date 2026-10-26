@@ -30,7 +30,7 @@ using System.Runtime.InteropServices;
 
 [assembly: AssemblyDescription("Single-player campaign display helper")]
 
-[assembly: AssemblyVersion("1.9.1.0")]
+[assembly: AssemblyVersion("1.10.0.0")]
 
 static class Engine {
 
@@ -38,46 +38,13 @@ static class Engine {
 
  internal const string WorkerMutex = @"Local\SC2CampaignAuto97563";
 
- internal static string PowerShell { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), @"System32\WindowsPowerShell\v1.0\powershell.exe"); } }
+ internal static string Executable { get { return Assembly.GetExecutingAssembly().Location; } }
 
- internal static void Extract() {
-
-  Assembly a=Assembly.GetExecutingAssembly();
-
-  var files=new SortedDictionary<string,byte[]>();
-
-  foreach(string name in a.GetManifestResourceNames().Where(n=>n.StartsWith("Engine."))) {
-
-   using(var input=a.GetManifestResourceStream(name)) using(var output=new MemoryStream()) { input.CopyTo(output); files.Add(name.Substring(7),output.ToArray()); }
-
-  }
-
-  if(files.Count!=15 || !files.ContainsKey("SC2Addresses.cs") || !files.ContainsKey("CampaignGate.cs") || !files.ContainsKey("CampaignDisplayRefresh.cs") || !files.ContainsKey("HubCamera.cs")) throw new Exception("The embedded engine is incomplete.");
-
+ internal static void Initialize() {
   string version;
-
-  using(var all=new MemoryStream()) {
-
-   foreach(var item in files) { var name=Encoding.UTF8.GetBytes(item.Key); all.Write(name,0,name.Length); all.Write(item.Value,0,item.Value.Length); }
-
-   using(var hash=SHA256.Create()) version=BitConverter.ToString(hash.ComputeHash(all.ToArray())).Replace("-","").Substring(0,16);
-
-  }
-
+  using(var input=File.OpenRead(Executable)) using(var hash=SHA256.Create()) version=BitConverter.ToString(hash.ComputeHash(input)).Replace("-","").Substring(0,16);
   Root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"SC2CampaignUltrawide",version);
-
   Directory.CreateDirectory(Root);
-
-  foreach(var item in files) {
-
-   string path=Path.Combine(Root,item.Key);
-
-   if(File.Exists(path) && File.ReadAllBytes(path).SequenceEqual(item.Value)) continue;
-
-   File.WriteAllBytes(path,item.Value);
-
-  }
-
  }
 
  internal static bool Running() {
@@ -96,11 +63,11 @@ static class Engine {
 
  }
 
- internal static Process Start(string script,string arguments,Action<string> output) {
+ internal static Process Start(string mode,string arguments,Action<string> output) {
 
   var p=new Process();
 
-  p.StartInfo=new ProcessStartInfo(PowerShell,"-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \""+Path.Combine(Root,script)+"\" "+arguments) {
+  p.StartInfo=new ProcessStartInfo(Executable,mode+" "+arguments) {
 
    UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden,WorkingDirectory=Root,RedirectStandardOutput=true,RedirectStandardError=true
 
@@ -111,14 +78,14 @@ static class Engine {
   p.ErrorDataReceived+=(s,e)=>{if(e.Data!=null) output(e.Data);};
 
   p.Start();
-  if(script=="Auto-Campaign.ps1")File.WriteAllText(Path.Combine(Root,"worker-process.json"),new JavaScriptSerializer().Serialize(new WorkerRecord{Pid=p.Id,Started=p.StartTime.ToUniversalTime().Ticks}));
+  if(mode=="--worker")File.WriteAllText(Path.Combine(Root,"worker-process.json"),new JavaScriptSerializer().Serialize(new WorkerRecord{Pid=p.Id,Started=p.StartTime.ToUniversalTime().Ticks}));
   p.BeginOutputReadLine();p.BeginErrorReadLine();return p;
 
  }
 
  internal static async Task<int> Run(string action,Action<string> output) {
 
-  using(var p=Start("Control.ps1","-Action "+action,output)) { await Task.Run(()=>p.WaitForExit());return p.ExitCode; }
+  using(var p=Start("--control",action,output)) { await Task.Run(()=>p.WaitForExit());return p.ExitCode; }
 
  }
 
@@ -143,7 +110,7 @@ static class Engine {
  internal sealed class WorkerRecord {public int Pid {get;set;}public long Started {get;set;}}
  internal static Process RecordedWorker(){
   try{var r=new JavaScriptSerializer().Deserialize<WorkerRecord>(File.ReadAllText(Path.Combine(Root,"worker-process.json")));if(r==null)return null;var p=Process.GetProcessById(r.Pid);
-   if(!p.HasExited&&p.StartTime.ToUniversalTime().Ticks==r.Started&&String.Equals(p.MainModule.FileName,PowerShell,StringComparison.OrdinalIgnoreCase))return p;p.Dispose();
+   if(!p.HasExited&&p.StartTime.ToUniversalTime().Ticks==r.Started&&String.Equals(p.MainModule.FileName,Executable,StringComparison.OrdinalIgnoreCase))return p;p.Dispose();
   }catch(IOException){}catch(ArgumentException){}catch(InvalidOperationException){}catch(System.ComponentModel.Win32Exception){}
   return null;
  }
@@ -236,7 +203,8 @@ class Launcher : Form {
  Process worker;
 
  bool busy,quitting,smoke,initializing=true,automaticEnabled=true;
- string lastAutoGame="";
+ string lastAutoGame="",cachedGame="";
+ Task<string> gameProbe;
  Dictionary<string,object> lastStatus;
  Button recheck;
 
@@ -359,7 +327,7 @@ class Launcher : Form {
 
   tray.ContextMenuStrip.Items.Add("Exit",null,async(s,e)=>{if(busy)return;await StopWorker();if(!Engine.Running()){quitting=true;Close();}});
 
-  timer.Interval=1000;timer.Tick+=async(s,e)=>{RefreshState();await CheckForRunningGame();};timer.Start();
+  timer.Interval=1000;timer.Tick+=async(s,e)=>{if(!smoke)PollGame();RefreshState();await CheckForRunningGame();};timer.Start();
 
   FormClosing+=(s,e)=>{if(!quitting&&!smoke&&(busy||Engine.Running()||WorkerAlive())){e.Cancel=true;Hide();tray.Visible=true;tray.ShowBalloonTip(2500,"Campaign Ultrawide","Automatic setup is still running. Double-click this icon to reopen.",ToolTipIcon.Info);}};
 
@@ -443,7 +411,15 @@ class Launcher : Form {
 
  bool WorkerAlive(){try{return worker!=null&&!worker.HasExited;}catch{return false;}}
 
- bool GameOpen(){var games=Process.GetProcessesByName("SC2_x64");bool found=games.Length>0;foreach(var g in games)g.Dispose();return found;}
+ bool GameOpen(){return cachedGame.Length>0;}
+
+ void PollGame(){
+  if(gameProbe!=null){
+   if(!gameProbe.IsCompleted)return;
+   if(gameProbe.IsFaulted)Append(gameProbe.Exception.ToString());else cachedGame=gameProbe.Result;
+  }
+  gameProbe=Task.Run(()=>GameIdentity());
+ }
 
  void Reveal(){Show();WindowState=FormWindowState.Normal;Activate();tray.Visible=false;}
 
@@ -454,7 +430,7 @@ class Launcher : Form {
  }
  async Task CheckForRunningGame(){
   if(smoke||!automaticEnabled||busy||zoomSteps.DroppedDown||maxZoom.DroppedDown||themes.DroppedDown||hubScales.DroppedDown||hudSizes.DroppedDown||resolutions.DroppedDown)return;
-  string game=GameIdentity();if(game.Length==0){lastAutoGame="";return;}
+  string game=cachedGame;if(game.Length==0){lastAutoGame="";return;}
   if(Engine.Running()||WorkerAlive()||game==lastAutoGame)return;
   lastAutoGame=game;await StartWorker();
  }
@@ -536,7 +512,7 @@ class Launcher : Form {
  async Task StartWorker(){
 
   if(busy||Engine.Running()||WorkerAlive()||Selected==null||!ScaleFits)return;
-  automaticEnabled=true;lastAutoGame=GameIdentity();busy=true;RefreshState();
+  automaticEnabled=true;lastAutoGame=cachedGame;busy=true;RefreshState();
 
   try{
 
@@ -544,7 +520,7 @@ class Launcher : Form {
 
    lastStatus=null;var state=Path.Combine(Engine.Root,"auto-campaign-state.json");if(File.Exists(state))File.Delete(state);
 
-   notice="";worker=Engine.Start("Auto-Campaign.ps1","-TargetWidth "+Selected.Width+" -TargetHeight "+Selected.Height+" -HudScale "+HudScale+" -HubScale "+HubScale+" -MaxZoom "+MaxZoom+" -ZoomSteps "+ZoomSteps,Append);
+   notice="";worker=Engine.Start("--worker","-TargetWidth "+Selected.Width+" -TargetHeight "+Selected.Height+" -HudScale "+HudScale+" -HubScale "+HubScale+" -MaxZoom "+MaxZoom+" -ZoomSteps "+ZoomSteps,Append);
 
    Append("Automatic setup started for "+Selected.Width+"x"+Selected.Height+".");RefreshState();await Task.Delay(200);RefreshState();
 
@@ -616,6 +592,10 @@ class Launcher : Form {
  void LayoutTest(){
 
   var lines=new List<string>();lines.Add(Engine.StatusSelfTest());
+   var pending=new TaskCompletionSource<string>();gameProbe=pending.Task;PollGame();RefreshState();
+   if(gameProbe!=pending.Task)throw new Exception("Overlapping game probes");
+   pending.SetResult("test-game");PollGame();if(!GameOpen())throw new Exception("Completed game probe ignored");cachedGame="";
+   lines.Add("PASS: pending game detection does not block refresh or start overlapping probes.");
   if(hudSizes.Items.Count!=11)throw new Exception("HUD size option count");
   for(int i=0;i<11;i++)if(hudSizes.Items[i].ToString()!=(50+5*i)+"%")throw new Exception("HUD size increment");
   lines.Add("PASS: HUD selector contains 50%-100% in 5% steps.");
@@ -689,7 +669,12 @@ static class Program {
 
   try {
 
-   if(test)Engine.Extract();
+   if(args.Length>0&&(args[0]=="--worker"||args[0]=="--control")) {
+    Engine.Initialize();
+    if(args[0]=="--worker")return EngineWorker.Run(Engine.Root,args.Skip(1).ToArray());
+    return args.Length==2?EngineControl.Run(Engine.Root,args[1]):1;
+   }
+   if(test)Engine.Initialize();
      if(test) {
 
       var output=new StringBuilder();output.AppendLine(Engine.StatusSelfTest());int result=Engine.Run("SelfTest",s=>{lock(output)output.AppendLine(s);}).GetAwaiter().GetResult();
@@ -708,7 +693,7 @@ static class Program {
 
     try {
 
-     Engine.Extract();
+     Engine.Initialize();
 
      Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);Application.Run(new Launcher(smoke));return Environment.ExitCode;
 

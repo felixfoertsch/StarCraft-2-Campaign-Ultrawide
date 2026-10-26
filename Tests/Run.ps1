@@ -1,11 +1,7 @@
-﻿param([switch]$SkipUi)
+param([switch]$SkipUi)
 $ErrorActionPreference='Stop'
 $project=Split-Path -Parent $PSScriptRoot
 $exe=& (Join-Path $project 'Build.ps1')
-$hostExe=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-$native=Join-Path $PSScriptRoot 'Native.ps1'
-& $hostExe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $native
-if($LASTEXITCODE -ne 0){throw 'Native eligibility and installation tests failed.'}
 $modes=@('--self-test')
 if(!$SkipUi){$modes+='--smoke-test'}
 foreach($mode in $modes){

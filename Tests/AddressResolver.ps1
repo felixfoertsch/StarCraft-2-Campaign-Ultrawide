@@ -1,6 +1,6 @@
 param([Parameter(Mandatory=$true)][string]$ImagePath,[Parameter(Mandatory=$true)][UInt64]$ModuleBase)
 $ErrorActionPreference='Stop'
-Add-Type -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'Engine\SC2Addresses.cs')
+[void][Reflection.Assembly]::LoadFrom((Join-Path (Split-Path -Parent $PSScriptRoot) 'build\Campaign Ultrawide.exe'))
 $image=[IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $ImagePath))
 $result=[SC2Addresses]::ResolveImage($image,$ModuleBase)
 if($result.Count -ne 44){throw 'Incomplete address table.'}

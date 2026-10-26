@@ -1,5 +1,12 @@
 ﻿# Changelog
 
+## 1.10.0
+
+- Run without PowerShell: the engine is compiled into the executable. Wine / Proton needs only Wine Mono.
+- Build on Linux with `mise exec -- dotnet build -c Release`.
+- Run the helper in the same Wine / Proton prefix as StarCraft II. Under umu, launch it with `PROTON_VERB=run`.
+- Run StarCraft II / Battle.net inside gamescope at native resolution, for example `gamescope -W 3440 -H 1440 -w 3440 -h 1440 -r 120 -f -- umu-run Battle.net.exe`. Otherwise Proton restores the 16:9 fullscreen mode on alt-tab.
+
 ## 1.9.1
 
 - Fix Fit and Expanded hub views in the Zerg campaign.
